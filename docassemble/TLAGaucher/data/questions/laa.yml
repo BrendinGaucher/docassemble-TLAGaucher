@@ -1,7 +1,62 @@
+objects:
+  - user: Individual
+  - client: Individual
+  - cohabs: DAList.using(object_type=Individual)
+---
 mandatory: true
 question: |
-  Hello, ${ name }.
+  Hello, ${ user } and ${ client }.
+subquestion: |
+  You live with ${ cohabs }
+  
+  I asked if you ever played golf. You said ${ played_golf }.
+  
+  Your favourite golfer is ${ user.favourite_golfer }.
+  
+  Have you played Baseball? ${ user.played_baseball }
+  
+  Have you played Basketball? ${ user.played_basketball }
+  
+  Have you played tennis? ${ user.played_tennis }
+  
+  Have you played hockey? ${ user.played_hockey }
+  
+  Your signature ${ signature }
 ---
-question: What is your name?
+generic object: Individual
+question: |
+  What is ${ x.object_possessive('name') }?
 fields: 
-  - Name: name
+  - First Name: x.name.first
+  - Last Name: x.name.last
+---
+question: Do you live with anyone?
+yesno: cohabs.there_are_any
+---
+question: Do you live with anyone else?
+yesno: cohabs.there_is_another
+---
+question: Have you ever played golf?
+yesno: played_golf
+---
+question: Who is your favourite golfer of all-time?
+field: user.favourite_golfer
+choices:
+  - Tiger Woods
+  - Arnold Palmer
+  - John Daly
+  - Jack Nicklaus
+---
+question: Which of the following sport have you tried?
+fields:
+  - Baseball: user.played_baseball
+    datatype: yesnowide
+  - Basketball: user.played_basketball
+    datatype: yesnowide
+  - Tennis: user.played_tennis
+    datatype: yesnowide
+  - Hockey: user.played_hockey
+    datatype: yesnowide
+---
+Question: Please sign
+signature: signature
