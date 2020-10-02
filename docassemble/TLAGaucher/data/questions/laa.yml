@@ -1,43 +1,59 @@
 objects:
   - user: Individual
-  - client: Individual
-  - cohabs: DAList.using(object_type=Individual)
 ---
 mandatory: true
-question: |
-  Hello, ${ user } and ${ client }.
-subquestion: |
-  You live with ${ cohabs }
+code: |
+  if (afford_lawyer == False):
+    if has_lawyer:
+      lawyer_still_acting
   
-  I asked if you ever played golf. You said ${ played_golf }.
-  
-  Your favourite golfer is ${ user.favourite_golfer }.
-  
-  Have you played Baseball? ${ user.played_baseball }
-  
-  Have you played Basketball? ${ user.played_basketball }
-  
-  Have you played tennis? ${ user.played_tennis }
-  
-  Have you played hockey? ${ user.played_hockey }
-  
-  Your signature ${ signature }
-
-Attachments:
-  - name: Document
-    filename: StudentAid
-    content: |
-      Dear ${ user },
+  if (appeal_matter == False):
+    location_alberta
+    live_alberta
+    criminal_law
+    family_law
       
-      You live with ${ cohabs }
+---
+question: Results
+attachments:
+  - name: Document
+    filename: document
+    content: |
+      Dear, ${ user }.
+      
+      When asked if you can afford a lawyer, you said ${ afford_lawyer }
+      
+      % if (afford_lawyer == False):
+      When asked if you have a lawyer, you said ${ has_lawyer }
+        
+        % if has_lawyer:
+        When asked if your lawyer is still acting for you, you said ${ lawyer_still_acting }
+        
+        %endif
+        
+      %endif
+      
+      When asked if this is an appeal of a matter that you had LAA assistance on, you said ${ appeal_matter }
+      
+      % if (appeal_matter == False):
+      When asked if your matter is in Alberta, you said ${ location_alberta }
+        
+      When asked if the matter was family law, you said ${ family_law }
+      
+      When asked if the matter was criminal law, you said ${ criminal_law }
+      
+      When asked if you live in Alberta, you said ${ live_alberta }
+
+      %endif
       
       % if qualifies_studentaid:
-      Congrats! You qualify for student aid!
+      Congrats, you qualify for student aid. Please bring in a copy of this document that shows you qualify when you arrive for your first appointment.
       % else:
-      Sorry, you do not qualify for student aid.
+      Sorry you do not qualify, please visit our website for other resources that could help you.
       % endif
-      
-      You told me you were born on ${ format_date(birthday, format='EEEE, MMMM d, yyyy') } which can be written as ${ format_date(birthday, format='yyyy-MM-dd') }
+   
+mandatory: true
+
 ---
 generic object: Individual
 question: |
@@ -46,41 +62,45 @@ fields:
   - First Name: x.name.first
   - Last Name: x.name.last
 ---
-question: Do you live with anyone?
-yesno: cohabs.there_are_any
+code: |
+  if ((client_is_represented == False) and residency_alberta):
+    qualifies_studentaid = True
+  else:
+    qualifies_studentaid = False
 ---
-question: Do you live with anyone else?
-yesno: cohabs.there_is_another
+code: |
+  if (afford_lawyer or (has_lawyer and lawyer_still_acting)):
+    client_is_represented = True
+  else:
+    client_is_represented = False
 ---
-question: Have you ever played golf?
-yesno: played_golf
+code: |
+  if  (location_alberta and (family_law or criminal_law) and live_alberta) or appeal_matter:
+    residency_alberta = True
+  else:
+    residency_require = False
 ---
-question: Who is your favourite golfer of all-time?
-field: user.favourite_golfer
-choices:
-  - Tiger Woods
-  - Arnold Palmer
-  - John Daly
-  - Jack Nicklaus
+question: Do you have a lawyer?
+yesno: has_lawyer
 ---
-question: Which of the following sport have you tried?
-fields:
-  - Baseball: user.played_baseball
-    datatype: yesnowide
-  - Basketball: user.played_basketball
-    datatype: yesnowide
-  - Tennis: user.played_tennis
-    datatype: yesnowide
-  - Hockey: user.played_hockey
-    datatype: yesnowide
+question: Can you afford a lawyer?
+yesno: afford_lawyer
 ---
-Question: Please sign
-signature: signature
+question: Is that lawyer still acting for you?
+yesno: lawyer_still_acting
 ---
-question: Do you qualify for student aid?
-yesno: qualifies_studentaid
+question: Is your legal matter located in Alberta?
+yesno: location_alberta
 ---
-question: What is you birthday?
-fields:
-  - Birthday: birthday
-    datatype: date
+question: Is your legal matter a family law matter?
+yesno: family_law
+---
+question: Is your legal matter a criminal law matter?
+yesno: criminal_law
+---
+question: Do you live in Alberta?
+yesno: live_alberta
+---
+question: Is your matter an appeal of a matter for which the user received LAA assistance?
+yesno: appeal_matter
+---
