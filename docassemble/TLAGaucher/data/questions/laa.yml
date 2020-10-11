@@ -1,8 +1,17 @@
 objects:
-  - user: Individual
+  - cohab: DAList.using(object_type=Individual, complete_attribute="complete")
+  - cohab[i].assets: Value
+  - cohab[i].income: Value
+---
+code: |
+  cohab[i].assets.exists
+  cohab[i].complete = True
 ---
 mandatory: true
 code: |
+  user_first_name
+  income_exists
+
   if (afford_lawyer == False):
     if has_lawyer:
       lawyer_still_acting
@@ -12,26 +21,80 @@ code: |
     live_alberta
     criminal_law
     family_law
-      
 ---
 question: Results
 attachments:
   - name: Document
     filename: document
     content: |
-      Dear, ${ user }.
+      Dear ${ user_first_name } ${ user_last_name },
+      
+      % if len(cohab) > 0:
+      
+      % for c in cohab:
+      
+      You live with ${ c }.
+      
+      % if c.assets.exists:
+      ${ c } has ${ c.assets.value } dollars in assets.
+      % endif
+      
+      % if c.income.exists:
+      ${ c } makes ${ c.income.value_month } dollars per month and ${ c.income.value_year } dollars per year.
+      % endif
+     
+      % endfor
+      % else:
+      You live alone.
+      % endif
+      
+      
+      
+      When I asked if you had an income you said ${ income_exists }
+      
+      % if income_exists:
+      Your income is ${ userincome_year } per year.
+      Your income is ${ userincome_month } per month.
+      % endif
+      The total household yearly income is ${ currency(total_income_year) } and the total monthly income is ${ currency(total_income_month) } 
+      
+      % if eligiblequalify_yearincome:
+      Your yearly income qualifies.
+      % elif marginalqualify_yearincome:
+      Your yearly income marginaly qualifies.
+      % else:
+      Your yearly income does not qualify.
+      % endif
+      
+      % if eligiblequalify_monthincome:
+      Your monthly income qualifies.
+      % elif marginalqualify_monthincome:
+      Your monthly income marginaly qualifies.
+      % else:
+      Your monthly income does not qualify.
+      % endif
+      
+      % if qualifies_financial:
+      You are financially eligible.
+      % else:
+      You are not financially eligible.
+      % endif
+      
+      The value of your assets is ${ assets_amount }
+      
+      You said there are ${ live_with } people in your home.
       
       When asked if you can afford a lawyer, you said ${ afford_lawyer }
       
       % if (afford_lawyer == False):
       When asked if you have a lawyer, you said ${ has_lawyer }
         
-        % if has_lawyer:
-        When asked if your lawyer is still acting for you, you said ${ lawyer_still_acting }
+      % if has_lawyer:
+      When asked if your lawyer is still acting for you, you said ${ lawyer_still_acting }
         
-        %endif
+      % endif
         
-      %endif
+      % endif
       
       When asked if this is an appeal of a matter that you had LAA assistance on, you said ${ appeal_matter }
       
@@ -44,7 +107,7 @@ attachments:
       
       When asked if you live in Alberta, you said ${ live_alberta }
 
-      %endif
+      % endif    
       
       % if qualifies_studentaid:
       Congrats, you qualify for student aid. Please bring in a copy of this document that shows you qualify when you arrive for your first appointment.
@@ -55,15 +118,20 @@ attachments:
 mandatory: true
 
 ---
+question: What is your name?
+fields:
+  - First: user_first_name
+  - Last: user_last_name
+---
 generic object: Individual
 question: |
-  What is ${ x.object_possessive('name') }?
+  What is their name?
 fields: 
   - First Name: x.name.first
   - Last Name: x.name.last
 ---
 code: |
-  if ((client_is_represented == False) and residency_alberta):
+  if ((client_is_represented == False) and residency_alberta and qualifies_financial):
     qualifies_studentaid = True
   else:
     qualifies_studentaid = False
@@ -75,7 +143,7 @@ code: |
     client_is_represented = False
 ---
 code: |
-  if  (location_alberta and (family_law or criminal_law) and live_alberta) or appeal_matter:
+  if  appeal_matter or (location_alberta and (family_law or criminal_law) and live_alberta):
     residency_alberta = True
   else:
     residency_require = False
@@ -104,3 +172,157 @@ yesno: live_alberta
 question: Is your matter an appeal of a matter for which the user received LAA assistance?
 yesno: appeal_matter
 ---
+question: Do you live with anyone?
+yesno: cohab.there_are_any
+---
+question: Do you live with anyone else?
+yesno: cohab.there_is_another
+---
+question: |
+  Tell me about the household overall.
+fields:
+  - How many people do you live with, including yourself?: live_with
+    datatype: integer
+---
+question: |
+  We need the following information from you:
+fields:
+  - Do you have an income?: income_exists
+    datatype: yesnowide
+  - What is the value of your assets?: assets_amount
+    datatype: currency
+  - What is your income in the last year?: userincome_year
+    datatype: currency
+    show if: income_exists
+  - What is your income in the last 30 days?: userincome_month
+    datatype: currency
+    show if: income_exists
+---
+question: |
+  We need the following info for ${ cohab[i] }:
+fields:
+  - Do they have assets?: cohab[i].assets.exists
+    datatype: yesnowide
+  - What is the value of their assets?: cohab[i].assets.value
+    datatype: currency
+    show if: cohab[i].assets.exists
+  - Do they have an income?: cohab[i].income.exists
+    datatype: yesnowide
+  - What is their income in the last 30 days?: cohab[i].income.value_month
+    datatype: currency
+    show if: cohab[i].income.exists
+  - What is their income in the last year?: cohab[i].income.value_year
+    datatype: currency
+    show if: cohab[i].income.exists
+---
+code: |
+  total_income_year = 0
+  for c in cohab:
+    if c.income.exists:
+      total_income_year = total_income_year + c.income.value_year
+  if income_exists:
+    total_income_year = total_income_year + userincome_year
+---
+code: |
+  if live_with == 1:
+    eligible_yearincome = 20021
+  if live_with == 2:
+    eligible_yearincome = 24788
+  if live_with == 3:
+    eligible_yearincome = 35275
+  if live_with == 4:
+    eligible_yearincome = 38134 
+  if live_with == 5:
+    eligible_yearincome = 40995
+  if live_with == 6:
+    eligible_yearincome = 43855
+  if live_with > 6:
+    eligible_yearincome = 43855
+---
+code: |
+  if live_with == 1:
+    marginal_yearincome = 22023
+  if live_with == 2:
+    marginal_yearincome = 27267
+  if live_with == 3:
+    marginal_yearincome = 38803
+  if live_with == 4:
+    marginal_yearincome = 41947
+  if live_with == 5:
+    marginal_yearincome = 45095
+  if live_with == 6:
+    marginal_yearincome = 48241
+  if live_with > 6:
+    marginal_yearincome = 48241
+---
+code: |
+  if total_income_year > marginal_yearincome:
+    noqualify_yearincome = True
+  
+  if total_income_year > eligible_yearincome  and total_income_year <= marginal_yearincome:
+    marginalqualify_yearincome = True
+    
+  if total_income_year <= eligible_yearincome:
+    eligiblequalify_yearincome = True
+---
+code: |
+  total_income_month = 0
+  for c in cohab:
+    if c.income.exists:
+      total_income_month = total_income_month + c.income.value_month
+  if income_exists:
+    total_income_month = total_income_month + userincome_month
+---
+code: |
+  if live_with == 1:
+    eligible_monthincome = 1668
+  if live_with == 2:
+    eligible_monthincome = 2066
+  if live_with == 3:
+    eligible_monthincome = 2940
+  if live_with == 4:
+    eligible_monthincome = 3178
+  if live_with == 5:
+    eligible_monthincome = 3416
+  if live_with == 6:
+    eligible_monthincome = 3655
+  if live_with > 6:
+    eligible_monthincome = 3655
+---
+code: |
+  if live_with == 1:
+    marginal_monthincome = 1835
+  if live_with == 2:
+    marginal_monthincome = 2272
+  if live_with == 3:
+    marginal_monthincome = 3234
+  if live_with == 4:
+    marginal_monthincome = 3496
+  if live_with == 5:
+    marginal_monthincome = 3758
+  if live_with == 6:
+    marginal_monthincome = 4021
+  if live_with > 6:
+    marginal_monthincome = 4021
+---
+code: |
+  
+  if total_income_month > marginal_monthincome:
+    noqualify_monthincome = True
+  
+  if total_income_month > eligible_monthincome  and total_income_month <= marginal_monthincome:
+    marginalqualify_monthincome = True
+    
+  if total_income_month <= eligible_monthincome:
+    eligiblequalify_monthincome = True
+---
+code: |
+  if (eligiblequalify_monthincome or marginalqualify_monthincome) and (eligiblequalify_yearincome or marginalqualify_yearincome):
+    qualifies_financial = True
+  else:
+    qualifies_financial = False
+  
+  
+  
+
+
