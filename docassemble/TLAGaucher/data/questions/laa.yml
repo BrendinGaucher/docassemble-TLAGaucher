@@ -1,11 +1,26 @@
-objects:
-  - cohab: DAList.using(object_type=Individual, complete_attribute="complete")
-  - cohab[i].assets: Value
-  - cohab[i].income: Value
----
+default role: client
 code: |
-  cohab[i].assets.exists
-  cohab[i].complete = True
+  multi_user = True
+  reviewer_email = "jmorris@ualberta.ca"
+  role = 'client'
+  if user_logged_in() and user_info().email == reviewer_email:
+    role = 'reviewer'
+  set_info(user=user, role=role)
+---
+event: role_event
+question: Waiting on Another User
+subquestion: |
+  You are not authorized to look at the next screen of this interview.
+  
+  % if 'client' in role_needed:
+  We are waiting for the client, and you are a reviewer.
+  % elif 'reviewer' in role_needed:
+  We are waiting for the reviewer, and you are the client. Please wait for approval while the advice memo is confirmed.
+  % endif
+  
+  Please have the other party go to [this link](${ interview_url() }) to continue.
+buttons: 
+  - Check: refresh
 ---
 mandatory: true
 code: |
@@ -21,11 +36,76 @@ code: |
     live_alberta
     criminal_law
     family_law
+  
+  if cohab.there_are_any:
+    cohab[0].assets.exists
+    
+  live_with
+  
+  LaaDocument
+  request_notification_sent
+  reviewer_response
+  response_notification_sent
+  
 ---
-question: Results
-attachments:
+code: |
+  request_notification_sent = send_email(to=reviewer_email,template=request_notification)
+---
+code: |
+  response_notification_sent = send_email(to=user.email,template=response_notification)
+---
+template: request_notification
+subject: LAW589 Assignment 6
+content: |
+  A document is ready for verification, [click here](${ interview_url() }) to respond.
+---
+template: response_notification
+subject: Response Received
+content: |
+  Your reviewer has provided an answer, [click here](${ interview_url() }) to view it.
+---
+role: reviewer
+question: Response
+subquestion: |
+  Please review the document generated for the user below. 
+  
+  ${ LaaDocument }
+  
+  Do you approve?
+yesno: reviewer_response
+---
+question: |
+  What is your e-mail address?
+fields:
+  - E-mail: user.email
+    datatype: email
+    required: True
+---
+mandatory: True
+question: |
+  The advice memo generated from your responses was sent to the reviewer who
+  % if reviewer_response:
+  approved the memo. Please see your advice memo below. You may also [download the document](${ LaaDocument.url_for() }).
+  
+  ${ LaaDocument }
+  % else:
+  did not approve the advice memo.
+  % endif
+---
+objects:
+  - user: Individual
+  - cohab: DAList.using(object_type=Individual, complete_attribute="complete")
+  - cohab[i].assets: Value
+  - cohab[i].income: Value
+---
+code: |
+  cohab[i].assets.exists
+  cohab[i].complete = True
+---
+attachment:
   - name: Document
     filename: document
+    variable name: LaaDocument
     content: |
       Dear ${ user_first_name } ${ user_last_name },
       
@@ -47,8 +127,6 @@ attachments:
       % else:
       You live alone.
       % endif
-      
-      
       
       When I asked if you had an income you said ${ income_exists }
       
@@ -114,9 +192,6 @@ attachments:
       % else:
       Sorry you do not qualify, please visit our website for other resources that could help you.
       % endif
-   
-mandatory: true
-
 ---
 question: What is your name?
 fields:
